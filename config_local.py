@@ -1,0 +1,2 @@
+DEP_SEARCH_WEBAPI="http://0.0.0.0:45678"
+DEP_EDITION_TOOL ="http://localhost:3000"

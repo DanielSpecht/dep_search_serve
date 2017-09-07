@@ -6,15 +6,18 @@
   {{c_line}}<br/>
   {% endfor %}
 </div>
+
 <div class="collapse" id="conllu_{{loop.index}}">
 <pre>
 {{tree}}
 </pre>
 </div>
 <pre>
+
+<a href ="{{ ids[loop.index0].url }}"> Edit {{ids[loop.index0].id}} </a>
+
 <code class="conllu">
 {{tree}}
 </code>
 </pre>
 {% endfor %}
-

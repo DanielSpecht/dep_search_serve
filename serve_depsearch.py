@@ -9,6 +9,7 @@ import requests
 import six
 import six.moves.urllib as urllib  # use six for python 2.x compatibility
 import traceback
+import re
 
 DEBUGMODE=False
 try:
@@ -18,10 +19,26 @@ except ImportError:
 
 app = Flask("dep_search_webgui")
 
+def yield_ids(src):
+    ids = []
+
+    for line in src:
+        if line.startswith(u"#") and "sent_id" in line:
+            id = re.match(r'.*sent_id.*=(.*)',line)
+            id = id.group(1)
+            id = id.strip()
+            print id
+            ids.append({"id":id,"url":DEP_EDITION_TOOL+"/table?sentence="+id})
+
+    return ids
+
+
 def yield_trees(src):
     current_tree=[]
     current_comment=[]
     current_context=u""
+    tree_id = u""
+
     for line in src:
         if line.startswith(u"# visual-style"):
             current_tree.append(line)
@@ -35,9 +52,17 @@ def yield_trees(src):
             current_tree.append(line)
         elif not line.startswith(u"#"):
             current_tree.append(line)
+
+        if line.startswith(u"#") and "sent_id" in line:
+             id= re.match(r'.*sent_id.*=(.*)',line)
+             id = id.group(1)
+             id = id.strip()
+             tree_id = id
+
         if line==u"":
             current_comment.append(Markup(current_context))
-            yield u"\n".join(current_tree), current_comment
+            y = u"\n".join(current_tree), current_comment
+            yield y
             current_comment=[]
             current_tree=[]
             current_context=u""
@@ -102,11 +127,15 @@ def query_post():
             lines=r.text.splitlines()
             if lines[0].startswith("# SourceStats : "):
                 sources=json.loads(lines[0].split(" : ",1)[1])
-                ret=flask.render_template(u"result_tbl.html",trees=yield_trees(lines[1:]))
+                ret=flask.render_template(u"result_tbl.html",trees= yield_trees(lines[1:]), ids = yield_ids(lines[1:]))
+
             else:
-                ret=flask.render_template(u"result_tbl.html",trees=yield_trees(lines))
+                
+                ret=flask.render_template(u"result_tbl.html",trees=yield_trees(lines), ids = yield_ids(lines))
+
         links=['<a href="{link}">{src}</a>'.format(link=q.query_link(treeset=src),src=src) for src in sources]
         return json.dumps({u'ret':ret,u'source_links':u' '.join(links),u'query_link':q.query_link(),u'download_link':q.download_link()});
+
     except:
         traceback.print_exc()
         
