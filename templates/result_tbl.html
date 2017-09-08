@@ -1,23 +1,34 @@
 {% for tree,comment in trees %}
 <a data-target="#tree_{{loop.index}}" data-toggle="collapse"> [context]</a>
 <a data-target="#conllu_{{loop.index}}" data-toggle="collapse"> [conllu]</a>
+<a data-target="#sentences_json_{{loop.index}}" data-toggle="collapse"> [json]</a>
+
 <div class="collapse" id="tree_{{loop.index}}">
   {% for c_line in comment %}
-  {{c_line}}<br/>
-  {% endfor %}
+  <pre>
+  {{c_line}}
+</pre>
+</br>
+ {% endfor %}
 </div>
 
 <div class="collapse" id="conllu_{{loop.index}}">
-<pre>
+  <pre>
 {{tree}}
 </pre>
 </div>
+
+<div class="collapse" id="sentences_json_{{loop.index}}">
+  <pre>
+{{sentences_json[loop.index0]}}
+</pre>
+</div>
+
 <pre>
 
-<a href ="{{ ids[loop.index0].url }}"> Edit {{ids[loop.index0].id}} </a>
+<a href ="{{editor_links[loop.index0]}}"> Edit {{bosque_ids[loop.index0]}} </a>
 
 <code class="conllu">
 {{tree}}
 </code>
-</pre>
-{% endfor %}
+</pre> {% endfor %}

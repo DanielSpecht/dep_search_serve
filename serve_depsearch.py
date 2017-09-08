@@ -10,6 +10,7 @@ import six
 import six.moves.urllib as urllib  # use six for python 2.x compatibility
 import traceback
 import re
+import json
 
 DEBUGMODE=False
 try:
@@ -19,7 +20,7 @@ except ImportError:
 
 app = Flask("dep_search_webgui")
 
-def yield_ids(src):
+def get_bosque_ids(src):
     ids = []
 
     for line in src:
@@ -27,11 +28,88 @@ def yield_ids(src):
             id = re.match(r'.*sent_id.*=(.*)',line)
             id = id.group(1)
             id = id.strip()
+            ids.append(id)
             print id
-            ids.append({"id":id,"url":DEP_EDITION_TOOL+"/table?sentence="+id})
 
     return ids
 
+def remove_added_comments(lines):
+    # Leave only the original comments of the sentence
+    # Comments that strt with the strings listed must be removed
+    indicators = [u"# visual-style", u"# context-hit",u"# context",u"# hittoken",u"# db-name",u"# graph id"]
+
+    def remove_line(line):
+        for indicator in indicators:
+            if line.startswith(indicator):
+                return True #must be removed
+        return False
+
+    return [x for x in lines if not remove_line(x)]
+
+def get_edition_tool_links(sent_ids,tokens_comments_json):
+    links = []
+
+    for i in range(0,len(sent_ids)):
+        links.append(DEP_EDITION_TOOL+"/table"+
+            "?tokens="+tokens_comments_json[i]["TOKENS"] +
+            "&comments="+tokens_comments_json[i]["COMMENTS"]+
+            "&sentence_id="+sent_ids[i])
+
+    return links
+
+def get_tokens_and_comments_json(src):
+    lines = remove_added_comments(src)
+    sentences = []
+    
+    sentence_dict = {}
+    sentence_dict["COMMENTS"] = []
+    sentence_dict["TOKENS"] = []
+
+    for line in lines:
+        if line==u"":
+            
+            sentences.append({"TOKENS":json.dumps(sentence_dict["TOKENS"]),
+                              "COMMENTS":json.dumps(sentence_dict["COMMENTS"])})
+
+            sentence_dict = {}
+            sentence_dict["COMMENTS"] = []
+            sentence_dict["TOKENS"] = []
+
+        elif line.startswith(u"#"):
+            sentence_dict["COMMENTS"].append(line)
+
+        else:
+            columns = line.split("\t")
+            sentence_dict["TOKENS"].append({"ID":columns[0],
+                                            "FORM":columns[1],
+                                            "LEMMA":columns[2],
+                                            "UPOSTAG":columns[3],
+                                            "XPOSTAG":columns[4],
+                                            "FEATS":columns[5],
+                                            "HEAD":columns[6],
+                                            "DEPREL":columns[7],
+                                            "DEPS":columns[8],
+                                            "MISC":columns[9]})
+    return sentences
+
+def get_dep_search_ids(src):
+    ids = []
+    
+    i = 0
+    while i < len(src)-1:
+        
+        if src[i].startswith(u"#") and "db-name" in src[i]:
+            i=i+1
+
+        elif src[i].startswith(u"#") and "graph id:" in src[i]:
+            id = re.match(r'.*graph id:(.*)',src[i])
+            id = id.group(1)
+            id = id.strip()
+            ids.append(id)
+        
+        i=i+1
+
+    return ids
 
 def yield_trees(src):
     current_tree=[]
@@ -53,12 +131,6 @@ def yield_trees(src):
         elif not line.startswith(u"#"):
             current_tree.append(line)
 
-        if line.startswith(u"#") and "sent_id" in line:
-             id= re.match(r'.*sent_id.*=(.*)',line)
-             id = id.group(1)
-             id = id.strip()
-             tree_id = id
-
         if line==u"":
             current_comment.append(Markup(current_context))
             y = u"\n".join(current_tree), current_comment
@@ -66,7 +138,6 @@ def yield_trees(src):
             current_comment=[]
             current_tree=[]
             current_context=u""
-
 
 class Query:
 
@@ -125,13 +196,41 @@ def query_post():
             ret = flask.render_template(u"empty_result.html")
         else:
             lines=r.text.splitlines()
+
             if lines[0].startswith("# SourceStats : "):
                 sources=json.loads(lines[0].split(" : ",1)[1])
-                ret=flask.render_template(u"result_tbl.html",trees= yield_trees(lines[1:]), ids = yield_ids(lines[1:]))
+
+                trees = yield_trees(lines[1:])
+                bosque_ids = get_bosque_ids(lines[1:])
+                db_ids = get_bosque_ids(lines[1:])
+                sentences_json=get_tokens_and_comments_json(lines[1:])
+                editor_links=get_edition_tool_links(db_ids,sentences_json)
+
+                ret=flask.render_template(  u"result_tbl.html",
+                                            trees=trees,
+                                            bosque_ids = bosque_ids,
+                                            db_ids = db_ids,
+                                            sentences_json=sentences_json,
+                                            editor_links=editor_links)
+                
+                #print get_sentences_json(lines[1:])
 
             else:
                 
-                ret=flask.render_template(u"result_tbl.html",trees=yield_trees(lines), ids = yield_ids(lines))
+                trees = yield_trees(lines)
+                bosque_ids = get_bosque_ids(lines)
+                db_ids = get_bosque_ids(lines)
+                sentences_json=get_tokens_and_comments_json(lines)
+                editor_links=get_edition_tool_links(db_ids,sentences_json)
+
+                ret=flask.render_template(  u"result_tbl.html",
+                                            trees=trees,
+                                            bosque_ids = bosque_ids,
+                                            db_ids = db_ids,
+                                            sentences_json=sentences_json,
+                                            editor_links=editor_links)
+                
+                #print get_sentences_json(lines)
 
         links=['<a href="{link}">{src}</a>'.format(link=q.query_link(treeset=src),src=src) for src in sources]
         return json.dumps({u'ret':ret,u'source_links':u' '.join(links),u'query_link':q.query_link(),u'download_link':q.download_link()});
@@ -153,8 +252,6 @@ def query_get():
     q=Query.from_get_request(flask.request.args)
     run_request=Markup(u'dsearch_simulate_form("{treeset}","{query}","{case_sensitive}","{max_hits}");'.format(treeset=q.treeset,query=q.query.replace(u'"',u'\\"'),case_sensitive=q.case_sensitive,max_hits=q.hits_per_page))
     return flask.render_template(u"index_template.html",corpus_groups=metadata[u"corpus_groups"],run_request=run_request)
-    
-
 
 if __name__ == u'__main__':
     app.run(debug=DEBUGMODE)
