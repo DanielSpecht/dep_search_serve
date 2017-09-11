@@ -46,14 +46,15 @@ def remove_added_comments(lines):
 
     return [x for x in lines if not remove_line(x)]
 
-def get_edition_tool_links(sent_ids,tokens_comments_json):
+def get_edition_tool_links(sent_ids,dep_search_ids,tokens_comments_json):
     links = []
 
     for i in range(0,len(sent_ids)):
         links.append(DEP_EDITION_TOOL+"/table"+
             "?tokens="+tokens_comments_json[i]["TOKENS"] +
             "&comments="+tokens_comments_json[i]["COMMENTS"]+
-            "&sentence_id="+sent_ids[i])
+            "&sentence_id="+sent_ids[i]+
+            "&db_id="+dep_search_ids[i])
 
     return links
 
@@ -76,7 +77,7 @@ def get_tokens_and_comments_json(src):
             sentence_dict["TOKENS"] = []
 
         elif line.startswith(u"#"):
-            sentence_dict["COMMENTS"].append(line)
+            sentence_dict["COMMENTS"].append(line[1:])
 
         else:
             columns = line.split("\t")
@@ -202,9 +203,9 @@ def query_post():
 
                 trees = yield_trees(lines[1:])
                 bosque_ids = get_bosque_ids(lines[1:])
-                db_ids = get_bosque_ids(lines[1:])
+                db_ids = get_dep_search_ids(lines[1:])
                 sentences_json=get_tokens_and_comments_json(lines[1:])
-                editor_links=get_edition_tool_links(db_ids,sentences_json)
+                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json)
 
                 ret=flask.render_template(  u"result_tbl.html",
                                             trees=trees,
@@ -219,9 +220,9 @@ def query_post():
                 
                 trees = yield_trees(lines)
                 bosque_ids = get_bosque_ids(lines)
-                db_ids = get_bosque_ids(lines)
+                db_ids = get_dep_search_ids(lines)
                 sentences_json=get_tokens_and_comments_json(lines)
-                editor_links=get_edition_tool_links(db_ids,sentences_json)
+                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json)
 
                 ret=flask.render_template(  u"result_tbl.html",
                                             trees=trees,
