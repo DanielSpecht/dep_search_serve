@@ -255,7 +255,7 @@ def query_get():
     return flask.render_template(u"index_template.html",corpus_groups=metadata[u"corpus_groups"],run_request=run_request)
 
 if __name__ == u'__main__':
-    app.run(debug=DEBUGMODE)
+    app.run(debug=DEBUGMODE,host='0.0.0.0', port=5000)
     r=requests.get(DEP_SEARCH_WEBAPI+u"/metadata") #Ask about the available corpora
     metadata=json.loads(r.text)
 
