@@ -46,15 +46,13 @@ def remove_added_comments(lines):
 
     return [x for x in lines if not remove_line(x)]
 
-def get_edition_tool_links(sent_ids,dep_search_ids,tokens_comments_json):
+def get_edition_tool_links(sent_ids,dep_search_ids,tokens_comments_json,db):
     links = []
 
     for i in range(0,len(sent_ids)):
-        links.append(DEP_EDITION_TOOL+"/table"+
-            "?tokens="+tokens_comments_json[i]["TOKENS"] +
-            "&comments="+tokens_comments_json[i]["COMMENTS"]+
-            "&sentence_id="+sent_ids[i]+
-            "&db_id="+dep_search_ids[i])
+        links.append(DEP_EDITION_TOOL+"/edit"+
+            "?sent_id="+dep_search_ids[i] +
+            "&db="+db)
 
     return links
 
@@ -205,7 +203,7 @@ def query_post():
                 bosque_ids = get_bosque_ids(lines[1:])
                 db_ids = get_dep_search_ids(lines[1:])
                 sentences_json=get_tokens_and_comments_json(lines[1:])
-                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json)
+                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json,q.treeset)
 
                 ret=flask.render_template(  u"result_tbl.html",
                                             trees=trees,
@@ -222,7 +220,7 @@ def query_post():
                 bosque_ids = get_bosque_ids(lines)
                 db_ids = get_dep_search_ids(lines)
                 sentences_json=get_tokens_and_comments_json(lines)
-                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json)
+                editor_links=get_edition_tool_links(bosque_ids,db_ids,sentences_json,q.treeset)
 
                 ret=flask.render_template(  u"result_tbl.html",
                                             trees=trees,
@@ -258,4 +256,3 @@ if __name__ == u'__main__':
     app.run(debug=DEBUGMODE,host='0.0.0.0', port=5000)
     r=requests.get(DEP_SEARCH_WEBAPI+u"/metadata") #Ask about the available corpora
     metadata=json.loads(r.text)
-
