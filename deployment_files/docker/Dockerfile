@@ -29,8 +29,11 @@ RUN pip install requests
 
 RUN mkdir repositories
 
+# Not made by git clone
+ADD dep_search_serve/ repositories/dep_search_serve/
+
 CMD cd repositories/ \
-    && git clone https://github.com/DanielSpecht/dep_search_serve.git \
+    #&& git clone https://github.com/DanielSpecht/dep_search_serve.git \
     && cd dep_search_serve \
     && python serve_depsearch.py
 

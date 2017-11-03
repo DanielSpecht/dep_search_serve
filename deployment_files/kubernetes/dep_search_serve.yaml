@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dep-search-serve-pod
+  labels:
+    app: dep-search-serve-app
+spec:
+  containers:
+    - name: dep-search-serve
+      image: image
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dep-search-serve-service
+spec:
+  type: NodePort
+  selector:
+    app: dep-search-serve-app
+  ports:
+  - protocol: TCP
+    port: 5000
+    targetPort: 5000
+    nodePort: 30002
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: dep-search-serve
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: dep-search-serve-pod
+      labels:
+        app: dep-search-serve-app
+    spec:
+      containers:
+        - name: dep-search-serve
+          image: image
