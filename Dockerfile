@@ -30,11 +30,9 @@ RUN pip install requests
 RUN mkdir repositories
 
 # Not made by git clone
-ADD src/ repositories/
+ADD src/ repositories/dep_search_serve
 
-CMD cd repositories/ \
-    && mv src dep_search_serve \
-    && cd dep_search_serve \
+CMD cd repositories/dep_search_serve \
     && python serve_depsearch.py
 
     
